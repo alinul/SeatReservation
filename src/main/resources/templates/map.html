@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Office Seat Reservation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .map {
+            position: relative;
+            width: 1300px;
+            height: 1200px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            overflow: auto;
+        }
+
+        .seat {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    border: 1px solid black;
+    font-size: 9px;
+    text-align: center;
+    line-height: 30px;
+    cursor: pointer;
+    font-weight: bold;
+    z-index: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seat:hover .tooltip {
+    display: block;
+}
+
+.tooltip {
+    display: none;
+    position: absolute;
+    background-color: #333;
+    color: white;
+    padding: 2px 6px;
+    font-size: 11px;
+    border-radius: 4px;
+    top: -25px;
+    left: 35px;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+        .available {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .reserved {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .conference-room {
+            position: absolute;
+            background-color: #17a2b8;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            line-height: 80px;
+            border-radius: 6px;
+            width: 195px;
+            height: 195px;
+            top: 990px;
+            left: 1085px;
+            z-index: 1;
+        }
+
+        .zone {
+            position: absolute;
+            border: 2px dashed #ffc107;
+            background-color: rgba(255, 193, 7, 0.3);
+            color: #333;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1;
+            padding-top: 10px;
+        }
+        .zones {
+            position: absolute;
+            color: black;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12px;
+            z-index: 1;
+            padding-top: 10px;
+        }
+        .zone2 {
+            position: absolute;
+            border: 2px;
+            background-color: gray;
+            color: #333;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1;
+            padding-top: 10px;
+        }
+        .modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 6px;
+    width: 300px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+}
+input, label {
+    display: block;
+    margin-bottom: 10px;
+    width: 100%;
+}
+    </style>
+</head>
+<body>
+<div id="modalOverlay"></div>
+<div id="reservationModal" class="modal">
+    <div class="modal-content">
+        <h2>Reserve Seat</h2>
+        <form id="reservationForm">
+            <label for="resName">Name:</label>
+            <input type="text" id="resName" name="name" required>
+
+            <label for="resPassword">Password:</label>
+            <input type="password" id="resPassword" name="password" required>
+
+            <label for="startDate">Start Date:</label>
+            <input type="date" id="startDate" name="startDate" required>
+
+            <label for="endDate">End Date:</label>
+            <input type="date" id="endDate" name="endDate" required>
+
+            <input type="hidden" id="resSeatCode" name="seatCode">
+
+            <div class="modal-actions">
+                <button type="button" class="close-btn">Cancel</button>
+                <button type="button" id="confirmReservation">Reserve</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="cancelModal" class="modal">
+    <div class="modal-content">
+        <h3>Cancel Reservation</h3>
+        <form id="cancelForm">
+            <label for="cancelPassword">Password:</label>
+            <input type="password" id="cancelPassword" name="password" required>
+            <input type="hidden" id="cancelSeatCode" name="seatCode">
+            <div class="modal-actions">
+                <button type="button" class="close-btn">Close</button>
+                <button type="button" id="confirmCancel">Cancel Reservation</button>
+            </div>
+        </form>
+    </div>
+</div>
+<h1>Office Seat Reservation</h1>
+
+<div class="map">
+    <!-- Conference Room -->
+    <div class="conference-room">PANDORA</div>
+
+    <!-- Seats -->
+    <div th:each="seat : ${seats}">
+        <div class="seat"
+             th:classappend="${seat.reserved} ? ' reserved' : ' available'"
+             th:style="'left:' + ${seat.x} + 'px;top:' + ${seat.y} + 'px;'"
+             th:attr="data-seat-code=${seat.seatCode}, data-reserved=${seat.reserved}"
+             th:title="${seat.reserved} ? 'Reserved by: ' + ${seat.reservedBy + ' from ' + #temporals.format(seat.startDate, 'dd-MM-yyyy') + ' to ' + #temporals.format(seat.endDate, 'dd-MM-yyyy')}"
+             th:text="${seat.reserved} ? ${seat.reservedBy}">
+        </div>
+    </div>
+
+    <!-- Example Zones -->
+    <div class="zone" style="left: 20px; top: 10px; width: 90px; height: 120px;"></div>
+    <div class="zones" style="left: 20px; top: 135px; width: 90px; height: 120px; ">HR</div>
+
+    <div class="zone" style="left: 120px; top: 10px; width: 90px; height: 90px;"></div>
+    <div class="zones" style="left: 120px; top: 105px; width: 90px; height: 90px; ">HR / Financiar   Management</div>
+
+    <div class="zone" style="left: 220px; top: 10px; width: 90px; height: 120px;"></div>
+    <div class="zones" style="left: 220px; top: 135px; width: 90px; height: 90px; ">Management</div>
+
+    <div class="zone" style="left: 320px; top: 10px; width: 50px; height: 90px;"></div>
+    <div class="zones" style="left: 300px; top: 105px; width: 90px; height: 90px; ">N/A</div>
+
+
+    <div class="zone" style="left: 380px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 380px; top: 175px; width: 90px; height: 160px; ">SAP</div>
+
+    <div class="zone" style="left: 480px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 480px; top: 175px; width: 90px; height: 160px; ">Broker</div>
+
+    <div class="zone" style="left: 580px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 580px; top: 175px; width: 90px; height: 160px; ">CreditGo</div>
+    <div class="zone" style="left: 680px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 680px; top: 175px; width: 90px; height: 160px; ">CreditGo</div>
+    <div class="zone" style="left: 780px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 780px; top: 175px; width: 90px; height: 160px; ">BTAM</div>
+    <div class="zone" style="left: 880px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 880px; top: 175px; width: 90px; height: 160px; ">BTAM   BancAssurance</div>
+    <div class="zone" style="left: 980px; top: 10px; width: 90px; height: 120px;"></div>
+    <div class="zones" style="left: 980px; top: 135px; width: 90px; height: 160px; ">BancAssurance</div>
+
+    <div class="zone" style="left: 1160px; top: 10px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 1035px; top: 30px; width: 90px; height: 160px; ">BT Pay</div>
+    <div class="zone" style="left: 1115px; top: 190px; width: 170px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 990px; top: 150px; width: 90px; height: 160px; ">BT Pay</div>
+    <div class="zone" style="left: 1115px; top: 290px; width: 170px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 990px; top: 250px; width: 90px; height: 160px; ">BT Pay   BTPayRoll</div>
+    <div class="zone" style="left: 1115px; top: 390px; width: 170px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 990px; top: 350px; width: 90px; height: 160px; ">BT PayRoll</div>
+    <div class="zone" style="left: 1145px; top: 490px; width: 140px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 1020px; top: 450px; width: 90px; height: 160px; ">Propriri</div>
+    <div class="zone" style="left: 1115px; top: 590px; width: 170px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 990px; top: 550px; width: 90px; height: 160px; ">CMS PJ</div>
+    <div class="zone" style="left: 1115px; top: 690px; width: 170px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 990px; top: 650px; width: 90px; height: 160px; ">CMS PF   Supervizare</div>
+    <div class="zone" style="left: 1115px; top: 790px; width: 170px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 990px; top: 750px; width: 90px; height: 160px; ">Supervizare</div>
+    <div class="zone" style="left: 1145px; top: 890px; width: 140px; height: 80px;"></div>
+    <div class="zones" style="transform: rotate(90deg); left: 1020px; top: 850px; width: 90px; height: 160px; ">BT One</div>
+    <div class="zone" style="left: 980px; top: 1050px; width: 90px; height: 120px;"></div>
+    <div class="zones" style="left: 980px; top: 1020px; width: 90px; height: 120px; ">BT One</div>
+    <div class="zone" style="left: 880px; top: 1010px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 880px; top: 980px; width: 90px; height: 120px; ">BT One</div>
+    <div class="zone" style="left: 780px; top: 1010px; width: 90px; height: 160px;"></div>
+    <div class="zones" style="left: 780px; top: 980px; width: 90px; height: 120px; ">BT One</div>
+    <div class="zone2" style="left: 20px; top: 250px; width: 950px; height: 650px; "></div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('reservationModal');
+        const cancelModal = document.getElementById('cancelModal');
+        const overlay = document.getElementById('modalOverlay');
+        const confirmBtn = document.getElementById('confirmReservation');
+        const confirmCancelBtn = document.getElementById('confirmCancel');
+        const closeBtns = document.querySelectorAll('.close-btn');
+
+        let selectedSeat = null;
+
+        function showModal(modalType, seat) {
+    selectedSeat = seat;
+    overlay.style.display = 'block';
+    modalType.style.display = 'block';
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const formatted = tomorrow.toISOString().split('T')[0];
+    document.getElementById('startDate').value = formatted;
+    document.getElementById('endDate').value = formatted;
+}
+
+        function closeModal() {
+            overlay.style.display = 'none';
+            modal.style.display = 'none';
+            cancelModal.style.display = 'none';
+            document.getElementById('resName').value = '';
+            document.getElementById('resPassword').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('cancelPassword').value = '';
+        }
+
+        document.querySelectorAll('.seat').forEach(seat => {
+            seat.addEventListener('click', () => {
+                const reserved = seat.getAttribute('data-reserved') === 'true';
+                if (reserved) {
+                    showModal(cancelModal, seat);
+                } else {
+                    showModal(modal, seat);
+                }
+            });
+        });
+
+        closeBtns.forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        confirmBtn.addEventListener('click', () => {
+            const seatCode = selectedSeat.getAttribute('data-seat-code');
+            const name = document.getElementById('resName').value;
+            const password = document.getElementById('resPassword').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!name || !password || !startDate || !endDate) {
+                alert('All fields are required');
+                return;
+            }
+
+            const bodyData = new URLSearchParams({
+                seatCode,
+                name,
+                password,
+                startDate,
+                endDate
+            });
+
+            fetch('/reserve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: bodyData
+            }).then(response => {
+    if (!response.ok) throw new Error("Request failed");
+    selectedSeat.classList.remove('available');
+    selectedSeat.classList.add('reserved');
+    selectedSeat.setAttribute('data-reserved', 'true');
+
+    const nameText = name.substring(0, 8);
+    selectedSeat.textContent = nameText;
+
+    // Include reservation date range in tooltip
+    selectedSeat.setAttribute('title', `Reserved by: ${name} from ${startDate} to ${endDate}`);
+
+    closeModal();
+}).catch(error => {
+                alert('Reservation failed');
+                console.error(error);
+            });
+        });
+
+        confirmCancelBtn.addEventListener('click', () => {
+            const seatCode = selectedSeat.getAttribute('data-seat-code');
+            const password = document.getElementById('cancelPassword').value;
+
+            if (!password) {
+                alert('Password required to cancel');
+                return;
+            }
+
+            const bodyData = new URLSearchParams({
+                seatCode,
+                password
+            });
+
+            fetch('/cancel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: bodyData
+            }).then(response => {
+                if (!response.ok) throw new Error("Cancellation failed");
+                selectedSeat.classList.remove('reserved');
+                selectedSeat.classList.add('available');
+                selectedSeat.setAttribute('data-reserved', 'false');
+                selectedSeat.textContent = '';
+                selectedSeat.setAttribute('title', seatCode);
+                closeModal();
+            }).catch(error => {
+                alert('Incorrect password');
+                console.error(error);
+            });
+        });
+    });
+</script>
+
+
+</body>
+</html>
