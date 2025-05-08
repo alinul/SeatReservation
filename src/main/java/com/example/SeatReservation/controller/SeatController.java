@@ -5,6 +5,7 @@ import com.example.SeatReservation.repository.SeatRepository;
 import com.example.SeatReservation.service.SeatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Controller
 public class SeatController {
@@ -41,14 +43,32 @@ public class SeatController {
     }
 
     @PostMapping("/reserve")
-    @ResponseBody
-    public String reserveSeat(@RequestParam String seatCode,
-                              @RequestParam String name,
-                              @RequestParam String password,
-                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        seatService.reserveSeat(seatCode, name, password, startDate, endDate);
-        return "reserved";
+    public ResponseEntity<String> reserveSeat(@RequestParam String seatCode,
+                                              @RequestParam String name,
+                                              @RequestParam String password,
+                                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        Optional<Seat> optionalSeat = seatRepository.findBySeatCode(seatCode);
+
+        if (optionalSeat.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Seat not found.");
+        }
+
+        Seat seat = optionalSeat.get();
+
+        if (seat.isReserved()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Seat already reserved!");
+        }
+
+        seat.setReserved(true);
+        seat.setReservedBy(name);
+        seat.setPassword(password);
+        seat.setStartDate(startDate);
+        seat.setEndDate(endDate);
+        seatRepository.save(seat);
+
+        return ResponseEntity.ok("Seat reserved successfully.");
     }
 
     @PostMapping("/cancel")

@@ -160,7 +160,7 @@ input, label {
 
             <label for="endDate">End Date:</label>
             <input type="date" id="endDate" name="endDate" required>
-
+            <div id="reservationError" style="color:red; margin-bottom:10px;"></div>
             <input type="hidden" id="resSeatCode" name="seatCode">
 
             <div class="modal-actions">
@@ -335,18 +335,19 @@ input, label {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: bodyData
-            }).then(response => {
-    if (!response.ok) throw new Error("Request failed");
+            }).then(async response => {
+    const text = await response.text();
+    if (!response.ok) {
+        document.getElementById('reservationError').textContent = text;
+        return;
+    }
+
+    // Success: update seat and close modal
     selectedSeat.classList.remove('available');
     selectedSeat.classList.add('reserved');
     selectedSeat.setAttribute('data-reserved', 'true');
-
-    const nameText = name.substring(0, 8);
-    selectedSeat.textContent = nameText;
-
-    // Include reservation date range in tooltip
-    selectedSeat.setAttribute('title', `Reserved by: ${name} from ${startDate} to ${endDate}`);
-
+    selectedSeat.textContent = name.substring(0, 8);
+    selectedSeat.setAttribute('title', `Reserved by: ${name}`);
     closeModal();
 }).catch(error => {
                 alert('Reservation failed');
